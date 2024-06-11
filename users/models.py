@@ -51,7 +51,7 @@ class Followers(AbstractUser, BaseModel):
     phone = models.CharField(max_length=50, unique=True, blank=True, null=True)
     image = models.ImageField(upload_to='images/',
             validators=[
-                FileExtensionValidator(allowed_extensions=['.jpeg', 'png', 'jpg']),
+                FileExtensionValidator(allowed_extensions=['.jpeg', '.png', '.jpg']),
                 FileSizeValidator
             ]
         )
@@ -104,7 +104,6 @@ class Followers(AbstractUser, BaseModel):
         self.username_validate()
         self.email_validate()
         self.password_validate()
-        self.token()
 
 
     def save(self, *args, **kwargs):
@@ -115,7 +114,7 @@ class Followers(AbstractUser, BaseModel):
 
 
 
-EMAIL_EXPIRE = 3
+EMAIL_EXPIRE = 5
 PHONE_EXPIRE = 2
 
 
