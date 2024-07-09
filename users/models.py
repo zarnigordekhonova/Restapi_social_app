@@ -4,10 +4,10 @@ from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.core.validators import FileExtensionValidator
 from django.core.exceptions import ValidationError
-from random import randint
-from shared_app.models import BaseModel
+import random
 from django.conf import settings
 from rest_framework_simplejwt.tokens import RefreshToken
+from shared_app.models import BaseModel
 
 # Create your models here.
 
@@ -15,6 +15,7 @@ ORDINARY_USER, ADMIN, MANAGER = ('ordinary_user', 'admin', 'manager')
 VIA_EMAIL, VIA_PHONE = ('via_email', 'via_phone')
 NEW, CONFIRM, DONE, DONE_PHOTO = ('new', 'confirm', 'done', 'done_photo')
 MALE, FEMALE = ('male', 'female')
+
 
 def FileSizeValidator(value):
     limit = 2 * 1024 * 1024
@@ -28,7 +29,7 @@ class Followers(AbstractUser, BaseModel):
         (ADMIN, ADMIN),
         (MANAGER, MANAGER)
     )
-    USER_TYPES = (
+    AUTH_TYPES = (
         (VIA_EMAIL, VIA_EMAIL),
         (VIA_PHONE, VIA_PHONE)
     )
@@ -44,17 +45,12 @@ class Followers(AbstractUser, BaseModel):
     )
 
     user_role = models.CharField(max_length=64, choices=USER_ROLES, default=ORDINARY_USER)
-    user_type = models.CharField(max_length=64, choices=USER_TYPES)
+    auth_type = models.CharField(max_length=64, choices=AUTH_TYPES)
     user_status = models.CharField(max_length=64, choices=USER_STATUS)
     gender = models.CharField(max_length=32, choices=GENDER)
     email = models.EmailField(max_length=50, unique=True, blank=True, null=True)
-    phone = models.CharField(max_length=50, unique=True, blank=True, null=True)
-    image = models.ImageField(upload_to='images/',
-            validators=[
-                FileExtensionValidator(allowed_extensions=['.jpeg', '.png', '.jpg']),
-                FileSizeValidator
-            ]
-        )
+    phone_number = models.CharField(max_length=50, unique=True, blank=True, null=True)
+    image = models.ImageField(upload_to='images/', default='default.png')
 
 
     def __str__(self):
@@ -64,28 +60,27 @@ class Followers(AbstractUser, BaseModel):
     def full_name(self):
         return f'{self.first_name} {self.last_name}'
 
-    def create_verify_code(self):
-        code = ''.join([str(randint(0, 100) % 10) for _ in range(4)])
+    def create_verify_code(self, verify_type):
+        code = "".join([str(random.randint(0, 10000) % 10) for _ in range(4)])
         CodeVerify.objects.create(
-            user_id=self.uu_id,
-            verify_type=self.user_type,
+            user_id=self.id,
+            verify_type=verify_type,
             code=code
         )
-
         return code
 
     def username_validate(self):
         if not self.username:
-            temp_username = f'social{uuid.uuid4().__str__().split('-')[-1]}'
-            self.username = temp_username
+            temp_username = f'social{uuid.uuid4().__str__().split("-")[-1]}'
             while Followers.objects.filter(username=temp_username):
-                temp_username = f'{temp_username}{str(randint(1, 100))}'
-                self.username = temp_username
+                temp_username = f'{temp_username}{str(random.randint(0, 9))}'
+            self.username = temp_username
 
 
     def email_validate(self):
-        normalized_email = self.email.lower()
-        self.email = normalized_email
+        if self.email:
+            normalized_email = self.email.lower()
+            self.email = normalized_email
 
     def password_validate(self):
         if not self.password:
@@ -94,10 +89,10 @@ class Followers(AbstractUser, BaseModel):
 
 
     def token(self):
-        refresh = RefreshToken.for_user(self.username)
+        refresh = RefreshToken.for_user(self)
         return {
-            'refresh' : str(refresh),
-            'access' : str(refresh.access_token)
+            "access": str(refresh.access_token),
+            "refresh_token": str(refresh)
         }
 
     def clean(self):
@@ -114,7 +109,7 @@ class Followers(AbstractUser, BaseModel):
 
 
 
-EMAIL_EXPIRE = 5
+EMAIL_EXPIRE = 2
 PHONE_EXPIRE = 2
 
 
@@ -125,10 +120,10 @@ class CodeVerify(BaseModel):
         (VIA_PHONE, VIA_PHONE)
     )
     code = models.CharField(max_length=4)
-    verify_type = models.CharField(max_length=50, choices=VERIFY_TYPE )
+    verify_type = models.CharField(max_length=50, choices=VERIFY_TYPE)
     is_confirm = models.BooleanField(default=False)
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='code_verifications')
-    expire_time = models.DateTimeField()
+    expire_time = models.DateTimeField(null=True)
 
     class Meta:
         db_table = 'code_verify'
@@ -136,10 +131,9 @@ class CodeVerify(BaseModel):
     def __str__(self):
         return f'{self.user} - {self.code}'
 
-    def save(self):
+    def save(self, *args, **kwargs):
         if self.verify_type == VIA_EMAIL:
-            self.expire_time = datetime.now() + timedelta(minutes=EMAIL_EXPIRE)
-        elif self.verify_type == VIA_PHONE:
-            self.expire_time = datetime.now() + timedelta(minutes=PHONE_EXPIRE)
-        super(CodeVerify, self).save()
-
+            self.expiration_time = datetime.now() + timedelta(minutes=EMAIL_EXPIRE)
+        else:
+            self.expiration_time = datetime.now() + timedelta(minutes=PHONE_EXPIRE)
+        super(CodeVerify, self).save(*args, **kwargs)

@@ -4,7 +4,7 @@ import phonenumbers
 from django.core.mail import EmailMessage
 from django.template.loader import render_to_string
 from rest_framework.exceptions import ValidationError
-from decouple import config
+# from decouple import config
 from twilio.rest import Client
 
 email_regex = re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,7}\b")
@@ -23,7 +23,7 @@ def check_email_or_phone(email_or_phone):
     else:
         data = {
             "success": False,
-            "message": "Email yoki telefon raqamingiz notogri"
+            "message": "You entered invalid email address or phone number!"
         }
         raise ValidationError(data)
 
@@ -41,7 +41,7 @@ def check_user_type(user_input):
     else:
         data = {
             "success": False,
-            "message": "Email, username yoki telefon raqamingiz noto'g'ri"
+            "message": "The username, email address or phone number you entered is incorrect!"
         }
         raise ValidationError(data)
     return user_input
@@ -77,7 +77,7 @@ def send_email(email, code):
     )
     Email.send_email(
         {
-            "subject": "Royhatdan otish",
+            "subject": "Registration",
             "to_email": email,
             "body": html_content,
             "content_type": "html"
@@ -85,12 +85,12 @@ def send_email(email, code):
     )
 
 
-def send_phone_code(phone, code):
-    account_sid = config('account_sid')
-    auth_token = config('auth_token')
-    client = Client(account_sid, auth_token)
-    client.messages.create(
-        body=f"Salom do'stim! Sizning tasdiqlash kodingiz: {code}\n",
-        from_="+998998887766",
-        to=f"{phone}"
-    )
+# def send_phone_code(phone, code):
+#     account_sid = config('account_sid')
+#     auth_token = config('auth_token')
+#     client = Client(account_sid, auth_token)
+#     client.messages.create(
+#         body=f"Your verification code: {code}\n",
+#         from_="+998993661603",
+#         to=f"{phone}"
+#     )
